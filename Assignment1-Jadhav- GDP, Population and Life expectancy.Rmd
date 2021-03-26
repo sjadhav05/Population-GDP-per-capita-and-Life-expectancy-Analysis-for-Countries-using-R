@@ -1,0 +1,167 @@
+---
+title: "Population, GDP per capita and Life expectancy Analysis for Countries"
+author: "Sneha Jadhav"
+date: "March 11, 2021"
+output: html_document
+---
+
+## Background
+
+* GDP per capita measures the value of everything produced in a country during a year, divided by the number of people. Life expectancy has increased rapidly since the Age of Enlightenment. In the early 19th century, life expectancy started to increase in the early industrialized countries while it stayed low in the rest of the world. This led to a very high inequality in how health was distributed across the world. Good health in the rich countries and persistently bad health in those countries that remained poor.
+
+* People live longer in countries with a higher GDP per capita. Or put differently; in countries with longer lives, GDP per capita is higher. The connection between health and wealth doesn’t tell us which comes first. But one thing is clear: there are not two groups of countries, despite what many people think. Dividing the countries into two groups, developing vs. developed, is extremely misleading. 
+
+* This dataset provides data about the population, life expectancy and GDP per capita in different countries of the world from 1952 to 2007. 
+
+
+## Objective
+
+* The goal of this project is to perform analysis on the GDP per capita, population, and life expectancy over the years by various continents to find exciting trends that answer some questions like has the world been shifting towards an increase in life expectancy? 
+
+* This data set includes continents and countries in two different columns, years and respective GDP, Life expectancy, and the population is stacked up in separate single columns. There are way too many columns presents in the dataset for each year and all other variables. This data is messy and non-descriptive, which has to be cleaned to make the dataset more descriptive. 
+
+* First, the raw comma-separated values (.csv) data will be loaded. Secondly, the Data Wrangling process would be carried out. Third, there will be some data exploration, and this will be completed mostly by loading plots to understand the data with visualization better.
+
+
+## Importing necessary modules
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+```
+
+## Loading the dataset
+```{r, message=FALSE, warning=FALSE}
+gap_wide <- read_csv('./gapminder_wide.csv')
+head(gap_wide,10) %>%
+     kbl(caption = "Gapminder Dataset: GDP, Life expectancy and population") %>%
+     kable_paper("hover", full_width = F) %>%
+     kable_styling(bootstrap_options = c("striped", "hover", "condensed",        "responsive")) %>%
+     add_header_above(c(" " = 2, "GDP Per Capita" = 12, "Life Expectancy" = 12, 
+                        "Population" = 12)) %>%
+     kable_classic_2(full_width = F)
+```
+
+
+## Cleaning the Dataset
+
+
+* Using the head function, we can see we have all of these variable names for GDP, life expectancy, and population combiningly have the data for the year.
+* Also, While this dataset is excellent for data entry, it's not nice for calculations. Some of the columns are a mix of a variable (e.g., "gdpPercap") and data ("1952"). What if we were asked for the mean population after 1990 in Algeria? Possible, but ugly. But we know it doesn't need to be so ugly. Let's tidy it back to the format we've been using.
+* Now, if we see the CSV file, We like the continent and country columns. We won't want to change those. We want 1 column identifying the variable name (tidyr calls this a 'key') and 1 column for the data (tidyr calls this the 'value').
+We want three different columns for variables: **gdpPercap, lifeExp, and pop**.
+Along with that, We would like **year** as a separate column too. So let's tidy up this dataset.
+* In this dataset, we have 30 columns. I'm not going to list them out here since there is way too much information and potential for error if I tried to list **gdpPercap_1952, gdpPercap_1957, gdpPercap_1962** and so on. So we will use dplyr to filter the data.
+
+
+#### tidyr::gather() wide to long
+```{r, message=FALSE, warning=FALSE}
+
+gap_long <- gap_wide %>% 
+  gather(key   = obstype_year,
+         value = obs_values,
+         dplyr::starts_with('pop'),
+         dplyr::starts_with('lifeExp'),
+         dplyr::starts_with('gdpPercap'))
+glimpse(gap_long)
+```
+From the glimpse function, We can see the observations related to the GDP. Life expectancy and population are loaded into one single column called obstype_year, and corresponding values are added into another column called obs_values. But still, we haven't reached our end results, and the data is still untidy as the obstype_year contains two pieces of information, the observation type (pop,lifeExp, or gdpPercap) and the year. We can use the separate() function to split the character strings into multiple variables.
+
+#### gather() and separate() to create the tidy gapminder dataset
+```{r, message=FALSE, warning=FALSE}
+
+gap_long <- gap_wide %>% 
+  gather(key   = obstype_year,
+         value = obs_values,
+         -continent, -country) %>%
+  separate(obstype_year,
+           into = c('obs_type','year'),
+           sep="_",
+           convert = TRUE)
+
+str(gap_long)
+glimpse(gap_long)
+```
+
+With str() and glimspe() functions, we can see the data set currently has one row for every continent, country, and year combination column, which gives us more than four observations in each row. For this dataset to be tidy, we want a single observation in each row, which means a row should consist of a continent, country, year, population, GDP, and life expectancy in that year. 
+
+According to the tidy data rule, each tibble should contain information about a single type of observational unit in the dataset. Still, in our dataset, we have a combination of lifeExp, pop, and gdpPercap stored in the same “obs_type” variable. This is a violation of a tidy dataset because these values each represent different types of observations.
+
+So transforming the dataset from a wide data set with a column for every year to a long data set that has all the above-mentioned colmnsns i.e, continent, country, year, lifeExp, pop and gdpPercap columns.
+
+```{r, message=FALSE, warning=FALSE}
+gap_long <- gap_long %>% 
+              spread(obs_type, obs_values) %>%
+              select(continent, country, year, lifeExp, pop, gdpPercap)
+glimpse(gap_long)
+```
+
+In the summary we can see the dataset is tidy now and each observation and variables have seperate rows and coloumns. 
+```{r, message=FALSE, warning=FALSE}
+summary(gap_long)
+```
+
+## Data Visulatizations
+
+Calculate and plot the the mean life expectancy for each continent over time from 1950 to 2007.
+```{r, message=FALSE, warning=FALSE}
+
+continents <- gap_long %>%
+  filter(year > 1950) %>%
+  group_by(continent, year) %>%
+  summarize(mean_le = mean(lifeExp)) %>%
+  ungroup()
+```
+
+geom line plot
+```{r, message=FALSE, warning=FALSE}
+
+ggplot(data = continents, aes(x = year, y = mean_le, color = continent)) + 
+  geom_line() +
+  labs(title = "Mean life expectancy",
+       x = "Year",
+       y = "Age (years)",
+       color = "Continent") +
+  theme_classic() +
+  scale_fill_brewer(palette = "Blues") 
+
+
+```
+Filtering data by year 2007 for further visualizations
+
+```{r, message=FALSE, warning=FALSE}
+
+gap_long_2007 <- gap_long %>%
+  filter(year == 2007)
+```
+
+Plot the geom_point plot to show the relationship between GDP, population and life expectancy in world
+```{r, message=FALSE, warning=FALSE}
+
+ggplot(gap_long_2007, aes(x = gdpPercap, y = lifeExp, 
+                          color = continent, size = pop)) +
+       geom_point(alpha=0.8) + scale_x_log10() + 
+       scale_size(range = c(.1, 20), name="Population") +
+       labs(x = 'GDP per Capita [in USD]', y = 'Life Expectancy [in years]', 
+       title = "World Development in 2007", color="Continent", size="Population")  
+  
+
+```
+
+### Observations
+* Mean Life expectancy has increased dramatically in the last decade worldwide as shown by all the lines. All the increase appears due to the changes in yellow and green lines representing "Asia" & "Americas," which have been increasing over the years and drastically increased since the year 1980. 
+* The plot clearly shows how an improvement in life expectancy followed the word development in all continents. In 1970, Oceanians lived almost the same year as that of Europeans, although by 2000, the gap is ultimately increased. It exemplifies the improvement that many non-western countries have achieved in the last 40 years.
+ * "Africa" actually started back in the 1950s till 1985 with the more steady curve and higher increase in life expectancy but then observed the decreases till the year 2000. After the year 2000, we can see some growth in life expectancy in Africa.
+* "Europe" and "Oceania's" mean life expectancy has remained on the top since the very start of 1950 to throughout 2007.
+* It can be observed that "Asia" has remained on top in population throughout. After "Asia," America's population is on second highest.
+* In terms of GDP, "America" is leading the world, followed by "Europe" and then "India". 
+
+
+
+
+
+
+
+
