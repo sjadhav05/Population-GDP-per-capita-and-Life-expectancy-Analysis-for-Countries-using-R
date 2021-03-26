@@ -1,0 +1,2 @@
+# Population-GDP-per-capita-and-Life-expectancy-Analysis-for-Countries-using-R
+This dataset provides data about the population, life expectancy, and GDP per capita in different countries of the world from 1952 to 2007.  The goal of this project is to perform analysis on the GDP per capita, population, and life expectancy over the years by various continents to find exciting trends that answer some questions like has the world been shifting towards an increase in life expectancy?
